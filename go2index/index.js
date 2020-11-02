@@ -325,7 +325,7 @@ async function handleRequest(request) {
     let range = request.headers.get("Range");
     if (gd.root.protect_file_link && basic_auth_res) return basic_auth_res;
     const is_down = !(command && command == "down");
-    return gd.down(file.id, range, is_down);
+    return gd.down(file.id, file.size, range, is_down);
   }
 }
 
@@ -500,11 +500,27 @@ class googleDrive {
     return res;
   }
 
-  async down(id, range = "", inline = false) {
+  async down(id, size, range = "", inline = false) {
     let url = `https://www.googleapis.com/drive/v3/files/${id}?alt=media`;
     let requestOption = await this.requestOption();
     requestOption.headers["Range"] = range;
-    let res = await fetch(url, requestOption);
+    let request = new Request(url, requestOption);
+
+    let fetchFunc;
+    // Cache size per file limited per file is 512 MB for free plan user.
+    if (typeof(size) !== undefined && Number(size) < 512000000) {
+      fetchFunc = fetch(request, {
+        cf: {
+          // Always cache this fetch regardless of content type
+          // for a max of 1 month before revalidating the resource
+          cacheTtl: 2592000,
+          cacheEverything: true,
+        },
+      });
+    } else {
+      fetchFunc = await fetch(request);
+    }
+    let res = await fetchFunc;
     const { headers } = (res = new Response(res.body, res));
     this.authConfig.enable_cors_file_down &&
       headers.append("Access-Control-Allow-Origin", "*");
