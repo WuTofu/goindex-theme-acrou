@@ -493,6 +493,7 @@ class googleDrive {
     let requestOption = await this.requestOption();
     requestOption.headers["Range"] = range;
     let res = await fetch(url, requestOption);
+    let res = await this.fetchCfCache(url, requestOption, 300);
     const { headers } = (res = new Response(res.body, res));
     this.authConfig.enable_cors_file_down &&
       headers.append("Access-Control-Allow-Origin", "*");
@@ -508,6 +509,9 @@ class googleDrive {
 
     let fetchFunc;
     // Cache size per file is limited under 512 MB for free plan user.
+    // Cache size per file limited per file is 512 MB for free plan user.
+    // The request by user for accessing file will be pending if the cache 
+    // is miss until CF has completed the downloading from source
     if (typeof(size) !== undefined && Number(size) < 512000000) {
       fetchFunc = fetch(request, {
         cf: {
@@ -551,6 +555,7 @@ class googleDrive {
     url += "?" + this.enQuery(params);
     let requestOption = await this.requestOption();
     let response = await fetch(url, requestOption);
+    let response = await this.fetchCfCache(url, requestOption, 300);
     let obj = await response.json();
     // console.log(obj);
     return obj.files[0];
@@ -614,6 +619,7 @@ class googleDrive {
     url += "?" + this.enQuery(params);
     let requestOption = await this.requestOption();
     let response = await fetch(url, requestOption);
+    let response = await this.fetchCfCache(url, requestOption, 300);
     obj = await response.json();
 
     return {
@@ -668,6 +674,7 @@ class googleDrive {
     let url = `https://www.googleapis.com/drive/v3/drives/${any_id}`;
     let requestOption = await this.requestOption();
     let res = await fetch(url, requestOption);
+    let res = await this.fetchCfCache(url, requestOption, 604800);
     let obj = await res.json();
     if (obj && obj.id) return obj;
 
@@ -841,6 +848,7 @@ class googleDrive {
     }${is_user_drive ? "" : "&supportsAllDrives=true"}`;
     let requestOption = await this.requestOption();
     let res = await fetch(url, requestOption);
+    let res = await this.fetchCfCache(url, requestOption, 300);
     return await res.json();
   }
 
@@ -882,6 +890,7 @@ class googleDrive {
     url += "?" + this.enQuery(params);
     let requestOption = await this.requestOption();
     let response = await fetch(url, requestOption);
+    let response = await this.fetchCfCache(url, requestOption, 300);
     let obj = await response.json();
     if (obj.files[0] == undefined) {
       return null;
@@ -937,6 +946,19 @@ class googleDrive {
       }
       await this.sleep(800 * (i + 1));
     }
+    return response;
+  }
+
+  async fetchCfCache(url, requestOption, cacheTtl) {
+    let request = new Request(url, requestOption);
+    let response = await fetch(url, requestOption, {
+      cf: {
+        // Always cache this fetch regardless of content type
+        // for a max of cacheTtl second(s) before revalidating the resource
+        cacheTtl: cacheTtl,
+        cacheEverything: true,
+      },
+    });
     return response;
   }
 
