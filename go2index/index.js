@@ -509,7 +509,6 @@ class googleDrive {
 
     let fetchFunc;
     // Cache size per file is limited under 512 MB for free plan user.
-    // Cache size per file limited per file is 512 MB for free plan user.
     // The request by user for accessing file will be pending if the cache 
     // is miss until CF has completed the downloading from source
     if (typeof(size) !== undefined && Number(size) < 512000000) {
