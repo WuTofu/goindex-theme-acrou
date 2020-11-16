@@ -3,7 +3,9 @@ name: build
 on:
   push:
     paths-ignore:
-    - 'go2index/**'
+      - 'go2index/**'
+    tags-ignore:
+      - '**'
 
 jobs:
   build:
